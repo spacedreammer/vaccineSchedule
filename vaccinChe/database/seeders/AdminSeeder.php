@@ -19,7 +19,7 @@ class AdminSeeder extends Seeder
             'lname' => 'Admin',
             'email' => 'admin@space.com',
             'password' => bcrypt('qwertyui'), 
-            'role' => 'systemAdmin', 
+            'role' => 'admin', 
             'phone' => '0752182334',
         ]);
     }

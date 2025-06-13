@@ -1,17 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { MdAccountCircle, MdEventNote, MdHistory, MdLogout } from 'react-icons/md'; // Icons for navigation
+import { MdAccountCircle, MdEventNote, MdHistory, MdLogout } from 'react-icons/md';
 
-const API_BASE_URL = "http://localhost:8000/api"; // IMPORTANT: Replace with your actual Laravel API base URL
+const API_BASE_URL = "http://localhost:8000/api"; // Your Laravel API base URL
 
 const PatientDashboard = () => {
   const navigate = useNavigate();
 
-  // State for active tab in the dashboard
-  const [activeTab, setActiveTab] = useState('profile'); // 'profile', 'schedule', 'myAppointments'
-
-  // State for user profile data
+  const [activeTab, setActiveTab] = useState('profile');
   const [userProfile, setUserProfile] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState({
@@ -19,30 +16,26 @@ const PatientDashboard = () => {
     lname: '',
     email: '',
     phone: '',
-    password: '', // For password update
+    password: '',
   });
 
-  // State for appointments
   const [appointments, setAppointments] = useState([]);
   const [scheduleForm, setScheduleForm] = useState({
-    childName: '',
-    vaccineType: '',
-    appointmentDate: '',
-    appointmentTime: '',
+    childName: '', // This is for frontend form input
+    vaccineType: '', // This is for frontend form input
+    appointmentDate: '', // This is for frontend form input
+    appointmentTime: '', // This is for frontend form input
   });
 
-  // State for loading and messages
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
   const [isError, setIsError] = useState(false);
 
-  // Function to get the auth token from local storage
   const getAuthHeader = () => {
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem('access_token'); // Ensure this key is correct ('token' or 'access_token')
     return token ? { Authorization: `Bearer ${token}` } : {};
   };
 
-  // --- Fetch User Profile on Component Mount ---
   useEffect(() => {
     const fetchUserProfile = async () => {
       setLoading(true);
@@ -59,12 +52,12 @@ const PatientDashboard = () => {
 
         const response = await axios.get(`${API_BASE_URL}/auth/userProfile`, { headers });
         setUserProfile(response.data);
-        setFormData({ // Populate form for editing
+        setFormData({
           fname: response.data.fname || '',
           lname: response.data.lname || '',
           email: response.data.email || '',
           phone: response.data.phone || '',
-          password: '', // Password is not fetched
+          password: '',
         });
         setStatusMessage('Profile loaded.');
         setIsError(false);
@@ -85,11 +78,9 @@ const PatientDashboard = () => {
     };
 
     fetchUserProfile();
-  }, [navigate]); // Re-run if navigate function changes (unlikely, but good practice)
+  }, [navigate]);
 
-  // --- Fetch Appointments ---
   useEffect(() => {
-    // This effect runs whenever activeTab changes to 'myAppointments'
     if (activeTab === 'myAppointments') {
       const fetchAppointments = async () => {
         setLoading(true);
@@ -105,13 +96,24 @@ const PatientDashboard = () => {
           }
 
           const response = await axios.get(`${API_BASE_URL}/appointments/my`, { headers });
-          setAppointments(response.data); // Assuming response.data is an array of appointments
+
+          // API response is a direct array, so no .data.data needed
+          if (Array.isArray(response.data)) {
+              setAppointments(response.data); // This is correct
+              console.log("Fetched appointments:", response.data); // Debugging line
+          } else {
+              console.error("Appointments API response was not a direct array:", response.data);
+              setAppointments([]);
+              setStatusMessage("Received unexpected data format for appointments.");
+              setIsError(true);
+          }
+
+
           setStatusMessage('Appointments loaded.');
           setIsError(false);
         } catch (error) {
           console.error("Error fetching appointments:", error);
           setIsError(true);
-          // --- UPDATED ERROR MESSAGE HERE ---
           if (error.response) {
               setStatusMessage(`Failed to load appointments: ${error.response.status} - ${error.response.data.message || 'Server error'}`);
           } else if (error.request) {
@@ -124,16 +126,14 @@ const PatientDashboard = () => {
         }
       };
 
-      fetchAppointments(); // Keep this uncommented
+      fetchAppointments();
     }
-  }, [activeTab, navigate]); // Depend on activeTab to refetch when 'myAppointments' is selected
+  }, [activeTab, navigate]);
 
-  // --- Handle Profile Form Changes ---
   const handleProfileFormChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // --- Handle Profile Update Submission ---
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -160,11 +160,11 @@ const PatientDashboard = () => {
       const response = await axios.put(`${API_BASE_URL}/auth/updateUser/${userProfile.id}`, updatePayload, { headers });
 
       setUserProfile(response.data.user);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+      localStorage.setItem('user', JSON.stringify(response.data.user)); // Assuming Laravel returns 'user' object on update
 
       setStatusMessage(response.data.message || "Profile updated successfully!");
       setIsError(false);
-      setEditMode(false); // Exit edit mode
+      setEditMode(false);
     } catch (error) {
       console.error("Error updating profile:", error.response || error);
       setIsError(true);
@@ -183,12 +183,10 @@ const PatientDashboard = () => {
     }
   };
 
-  // --- Handle Schedule Form Changes ---
   const handleScheduleFormChange = (e) => {
     setScheduleForm({ ...scheduleForm, [e.target.name]: e.target.value });
   };
 
-  // --- Handle Schedule Appointment Submission ---
   const handleScheduleAppointment = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -204,16 +202,26 @@ const PatientDashboard = () => {
         return;
       }
 
-      const response = await axios.post(`${API_BASE_URL}/appointments/schedule`, scheduleForm, { headers });
+      // Ensure data sent matches Laravel's expected snake_case if your backend expects it
+      // For example, if Laravel expects 'child_name', send:
+      const payload = {
+          child_name: scheduleForm.childName,
+          vaccine_type: scheduleForm.vaccineType,
+          appointment_date: scheduleForm.appointmentDate,
+          appointment_time: scheduleForm.appointmentTime,
+          // Add any other necessary fields like user_id if not handled by backend auth
+      };
+
+      const response = await axios.post(`${API_BASE_URL}/appointments/schedule`, payload, { headers });
 
       setStatusMessage(response.data.message || "Appointment scheduled successfully!");
       setIsError(false);
-      setScheduleForm({ childName: '', vaccineType: '', appointmentDate: '', appointmentTime: '' }); // Clear form
+      setScheduleForm({ childName: '', vaccineType: '', appointmentDate: '', appointmentTime: '' });
 
       // After successful scheduling, refetch appointments to update the list
-      // This ensures the 'My Appointments' tab shows the new entry immediately
       const updatedAppointmentsResponse = await axios.get(`${API_BASE_URL}/appointments/my`, { headers });
-      setAppointments(updatedAppointmentsResponse.data);
+      // Ensure this also handles nested data if that's the response type for this endpoint
+      setAppointments(Array.isArray(updatedAppointmentsResponse.data) ? updatedAppointmentsResponse.data : updatedAppointmentsResponse.data.data);
 
 
     } catch (error) {
@@ -234,7 +242,6 @@ const PatientDashboard = () => {
     }
   };
 
-  // --- Handle Logout ---
   const handleLogout = async () => {
     setLoading(true);
     setStatusMessage('');
@@ -550,10 +557,11 @@ const PatientDashboard = () => {
                   <tbody>
                     {appointments.map((appt) => (
                       <tr key={appt.id} className="hover:bg-gray-50">
-                        <td className="py-2 px-4 border-b">{appt.childName}</td>
-                        <td className="py-2 px-4 border-b">{appt.vaccineType}</td>
-                        <td className="py-2 px-4 border-b">{appt.appointmentDate}</td>
-                        <td className="py-2 px-4 border-b">{appt.appointmentTime}</td>
+                        {/* FIX IS HERE: Use snake_case property names from API response */}
+                        <td className="py-2 px-4 border-b">{appt.child_name}</td>
+                        <td className="py-2 px-4 border-b">{appt.vaccine_type}</td>
+                        <td className="py-2 px-4 border-b">{appt.appointment_date}</td>
+                        <td className="py-2 px-4 border-b">{appt.appointment_time}</td>
                         <td className="py-2 px-4 border-b">
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                             appt.status === 'Confirmed' ? 'bg-green-200 text-green-800' :

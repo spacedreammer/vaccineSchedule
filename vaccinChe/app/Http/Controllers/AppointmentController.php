@@ -3,191 +3,159 @@
 namespace App\Http\Controllers;
 
 use App\Models\Appointment;
+use App\Models\Schedule; // To potentially update booked slots
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 
 class AppointmentController extends Controller
 {
-    public function schedule(Request $request)
+    // User Module: Schedule a new appointment
+    public function scheduleAppointment(Request $request)
     {
         try {
-            // Validate the incoming request data
+            $user = $request->user(); // Authenticated patient/user
+
             $validatedData = $request->validate([
-                'childName' => 'required|string|max:255',
-                'vaccineType' => 'required|string|max:255',
-                'appointmentDate' => 'required|date|after_or_equal:today', // Ensures date is today or in the future
-                'appointmentTime' => 'required|date_format:H:i',           // Validates time format (e.g., 14:30)
+                'child_name' => 'nullable|string|max:255',
+                'vaccine_type' => 'nullable|string|max:255', // If not directly tied to a schedule's vaccine_category
+                'preferred_date' => 'required|date|after_or_equal:today',
+                'preferred_time' => 'required|date_format:H:i',
+                'notes' => 'nullable|string',
+                'schedule_id' => 'nullable|exists:schedules,id', // Can be linked to a specific schedule slot
             ]);
 
-            // Create the appointment in the database
-            $appointment = Appointment::create([
-                'user_id' => Auth::id(), // Get the ID of the currently authenticated user
-                'child_name' => $validatedData['childName'],
-                'vaccine_type' => $validatedData['vaccineType'],
-                'appointment_date' => $validatedData['appointmentDate'],
-                'appointment_time' => $validatedData['appointmentTime'],
-                'status' => 'Pending', // Set default status for new appointments
+            // If schedule_id is provided, check capacity
+            if (isset($validatedData['schedule_id'])) {
+                $schedule = Schedule::find($validatedData['schedule_id']);
+                if ($schedule && $schedule->booked_slots >= $schedule->capacity) {
+                    return response()->json(['message' => 'The selected schedule slot is full.'], 400);
+                }
+            }
+
+            $appointment = $user->appointments()->create([
+                'child_name' => $validatedData['child_name'] ?? null,
+                'vaccine_type' => $validatedData['vaccine_type'] ?? null,
+                'preferred_date' => $validatedData['preferred_date'],
+                'preferred_time' => $validatedData['preferred_time'],
+                'notes' => $validatedData['notes'] ?? null,
+                'schedule_id' => $validatedData['schedule_id'] ?? null,
+                'status' => 'pending', // Default status upon creation
             ]);
 
-            // Return a success response with the created appointment data
+            // If linked to a schedule, increment booked slots
+            if (isset($validatedData['schedule_id']) && $schedule) {
+                $schedule->increment('booked_slots');
+                if ($schedule->booked_slots >= $schedule->capacity) {
+                    $schedule->update(['status' => 'full']);
+                }
+            }
+
             return response()->json([
-                'message' => 'Appointment scheduled successfully!',
+                'message' => 'Appointment scheduled successfully. Awaiting approval.',
                 'appointment' => $appointment,
-            ], 201); // 201 Created status code for successful resource creation
-
+            ], 201);
         } catch (ValidationException $e) {
-            // Handle validation errors
-            return response()->json([
-                'message' => 'Validation Failed',
-                'errors' => $e->errors()
-            ], 422); // 422 Unprocessable Entity for validation errors
+            return response()->json(['message' => 'Validation Error', 'errors' => $e->errors()], 422);
         } catch (\Exception $e) {
-            // Handle any other unexpected errors
-            return response()->json([
-                'message' => 'An error occurred while scheduling the appointment.',
-                'error' => $e->getMessage()
-            ], 500); // 500 Internal Server Error for general exceptions
+            return response()->json(['message' => 'Failed to schedule appointment', 'error' => $e->getMessage()], 500);
         }
     }
 
-    /**
-     * Retrieve all vaccination appointments for the authenticated user.
-     * This method handles the GET request to fetch a patient's appointments.
-     *
-     */
-    public function myAppointments()
+    // User Module: View user's own appointments
+    public function myAppointments(Request $request)
     {
-        try {
-            // Check if a user is authenticated
-            if (!Auth::check()) {
-                return response()->json(['message' => 'Unauthenticated.'], 401); // Unauthorized
-            }
+        $appointments = $request->user()->appointments()->get();
+        // Eager load related models if needed for frontend display (e.g., provider name, schedule details)
+        // $appointments = $request->user()->appointments()->with(['schedule', 'provider'])->get();
 
-            // Get appointments associated with the authenticated user, ordered by date and time
-            $appointments = Auth::user()->appointments()
-                ->orderBy('appointment_date', 'asc')
-                ->orderBy('appointment_time', 'asc')
-                ->get();
-
-            // Return the list of appointments
-            return response()->json($appointments);
-        } catch (\Exception $e) {
-            // Handle any unexpected errors during data retrieval
-            return response()->json([
-                'message' => 'An error occurred while fetching appointments.',
-                'error' => $e->getMessage()
-            ], 500); // 500 Internal Server Error
-        }
+        return response()->json($appointments);
     }
 
-    /**
-     * Display a specific vaccination appointment.
-     * This method fetches a single appointment by its ID, ensuring it belongs to the authenticated user.
-     *
-    
-     */
-    public function show($id)
+    // Admin/Health Officer Module: List pending appointments for approval
+    public function getPendingAppointments()
     {
-        try {
-            if (!Auth::check()) {
-                return response()->json(['message' => 'Unauthenticated.'], 401);
-            }
-
-            $appointment = Auth::user()->appointments()->find($id);
-
-            if (!$appointment) {
-                return response()->json(['message' => 'Appointment not found or not authorized.'], 404); // Not Found
-            }
-
-            return response()->json($appointment);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'An error occurred while retrieving the appointment.',
-                'error' => $e->getMessage()
-            ], 500);
+        // Simple auth check. Use middleware/policy for production.
+        if (Auth::check() && Auth::user()->role !== 'health_officer' && Auth::user()->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized access'], 403);
         }
+
+        $pendingAppointments = Appointment::where('status', 'pending')
+                                        ->with('user') // Eager load user to display their name
+                                        ->get();
+
+        return response()->json($pendingAppointments);
     }
 
-    /**
-     * Update an existing vaccination appointment.
-     * This method handles the PUT/PATCH request to update an appointment, ensuring it belongs to the authenticated user.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id The ID of the appointment to update.
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function update(Request $request, $id)
+    // Admin/Health Officer Module: Approve or Reject an appointment
+    public function updateAppointmentStatus(Request $request, Appointment $appointment)
     {
+        // Simple auth check. Use middleware/policy for production.
+        if (Auth::check() && Auth::user()->role !== 'health_officer' && Auth::user()->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized access'], 403);
+        }
+
         try {
-            if (!Auth::check()) {
-                return response()->json(['message' => 'Unauthenticated.'], 401);
-            }
-
-            $appointment = Auth::user()->appointments()->find($id);
-
-            if (!$appointment) {
-                return response()->json(['message' => 'Appointment not found or not authorized.'], 404);
-            }
-
-            // Validate the incoming request data for update
-            $validatedData = $request->validate([
-                'childName' => 'sometimes|required|string|max:255',
-                'vaccineType' => 'sometimes|required|string|max:255',
-                'appointmentDate' => 'sometimes|required|date|after_or_equal:today',
-                'appointmentTime' => 'sometimes|required|date_format:H:i',
-                'status' => 'sometimes|required|in:Pending,Confirmed,Completed,Cancelled', // Status can be updated by admin or specific logic
+            $validated = $request->validate([
+                'status' => 'required|string|in:approved,rejected,cancelled', // Admin/HO can set these
             ]);
 
-            $appointment->update($validatedData);
+            $appointment->update(['status' => $validated['status']]);
 
-            return response()->json([
-                'message' => 'Appointment updated successfully!',
-                'appointment' => $appointment,
-            ], 200); // 200 OK for successful update
+            // If an appointment is approved, assign a provider? (optional logic here)
+            // If an appointment is rejected/cancelled, decrement schedule booked_slots? (optional logic here)
+            if ($validated['status'] === 'rejected' && $appointment->schedule) {
+                $appointment->schedule->decrement('booked_slots');
+                if ($appointment->schedule->booked_slots < $appointment->schedule->capacity) {
+                    $appointment->schedule->update(['status' => 'active']);
+                }
+            }
 
+            return response()->json(['message' => 'Appointment status updated successfully', 'appointment' => $appointment]);
         } catch (ValidationException $e) {
-            return response()->json([
-                'message' => 'Validation Failed',
-                'errors' => $e->errors()
-            ], 422);
+            return response()->json(['message' => 'Validation Error', 'errors' => $e->errors()], 422);
         } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'An error occurred while updating the appointment.',
-                'error' => $e->getMessage()
-            ], 500);
+            return response()->json(['message' => 'Failed to update appointment status', 'error' => $e->getMessage()], 500);
         }
     }
 
-    /**
-     * Remove a vaccination appointment from storage.
-     * This method handles the DELETE request to remove an appointment, ensuring it belongs to the authenticated user.
-     *
-     * @param  int  $id The ID of the appointment to delete.
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function destroy($id)
+    // Service Provider Module: List appointments ready to be marked as completed
+    public function getAppointmentsReadyToComplete(Request $request)
     {
+        // Simple auth check. Use middleware/policy for production.
+        if (Auth::check() && Auth::user()->role !== 'service_provider' && Auth::user()->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized access'], 403);
+        }
+
+        $providerId = $request->user()->id;
+        $appointments = Appointment::where('provider_id', $providerId) // Only appointments assigned to this provider
+                                  ->where('status', 'approved') // Only approved ones can be completed
+                                  ->whereDate('preferred_date', '<=', now()->toDateString()) // On or before today
+                                  ->get();
+        // Eager load user for display
+        $appointments->load('user');
+
+        return response()->json($appointments);
+    }
+
+    // Service Provider Module: Mark service as completed
+    public function markAppointmentAsCompleted(Appointment $appointment)
+    {
+        // Simple auth check. Use middleware/policy for production.
+        if (Auth::check() && Auth::user()->role !== 'service_provider' && Auth::user()->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized access'], 403);
+        }
+
+        // Ensure the provider is assigned to this appointment (if provider_id exists)
+        if ($appointment->provider_id && $appointment->provider_id !== Auth::id()) {
+             return response()->json(['message' => 'Unauthorized to complete this appointment'], 403);
+        }
+
         try {
-            if (!Auth::check()) {
-                return response()->json(['message' => 'Unauthenticated.'], 401);
-            }
-
-            $appointment = Auth::user()->appointments()->find($id);
-
-            if (!$appointment) {
-                return response()->json(['message' => 'Appointment not found or not authorized.'], 404);
-            }
-
-            $appointment->delete();
-
-            return response()->json(['message' => 'Appointment deleted successfully!'], 200); // 200 OK for successful deletion
-
+            $appointment->update(['status' => 'completed']);
+            return response()->json(['message' => 'Appointment marked as completed', 'appointment' => $appointment]);
         } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'An error occurred while deleting the appointment.',
-                'error' => $e->getMessage()
-            ], 500);
+            return response()->json(['message' => 'Failed to mark appointment as completed', 'error' => $e->getMessage()], 500);
         }
     }
 }

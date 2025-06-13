@@ -19,7 +19,10 @@ return new class extends Migration
             $table->string('phone');
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
-            $table->enum('role', ['patient', 'healthOff', 'serviceProvider','systemAdmin'])->default('patient');
+          
+            $table->enum('role', ['patient','admin','health_officer','service_provider'])->default('patient');
+            $table->string('profile_picture')->nullable(); // Store URL to user's profile picture
+            $table->string('license_number')->nullable();
             $table->rememberToken();
             $table->timestamps();
         });

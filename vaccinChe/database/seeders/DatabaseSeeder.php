@@ -13,7 +13,13 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $this->call(AdminSeeder::class);
+        $this->call([
+            AdminSeeder::class,
+            UserSeeder::class,           // Users must exist first (especially health_officer)
+            VaccineCategorySeeder::class, // Vaccine categories must exist
+            ScheduleSeeder::class,  
+        ]);
+        
         // User::factory(10)->create();
 
         // User::factory()->create([
