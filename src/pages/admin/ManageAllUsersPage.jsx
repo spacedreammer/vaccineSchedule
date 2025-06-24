@@ -21,7 +21,7 @@ const ManageAllUsersPage = () => {
       });
       setUsers(res.data);
     } catch (err) {
-      toast.error("Failed to load all users.");
+      toast.error("Failed to load all users.", { toastId: "errorLoad" });
     } finally {
       setLoading(false);
     }

@@ -31,46 +31,46 @@ const FeedbackPage = () => {
       setStatusMessage('');
       setIsError(false);
       try {
+        const toastId = 'fetch-appointments-feedback-status'; // Unique ID for fetch toasts
         const headers = getAuthHeader();
         if (!headers.Authorization) {
           setStatusMessage("You are not logged in. Redirecting to login...");
           setIsError(true);
+          toast.error("You are not logged in. Redirecting to login...", { toastId });
           setTimeout(() => navigate('/login'), 1500);
           return;
         }
 
-        // Fetch completed appointments for this user
-        // You might need a specific endpoint for ONLY completed, or filter from my-appointments
-        // Example: /api/user/my-appointments?status=completed
         const response = await axios.get(`${API_BASE_URL}/user/my-appointments`, { headers });
 
         if (Array.isArray(response.data)) {
-          // Filter to show only completed appointments that haven't received feedback yet (if possible via API)
           const completedWithoutFeedback = response.data.filter(
-            appt => appt.status === 'completed' // Assuming status comes as 'completed'
-            // Add a check here if your API indicates if feedback has been given, e.g., !appt.has_feedback
+            appt => appt.status === 'completed'
           );
           setCompletedAppointments(completedWithoutFeedback);
           setStatusMessage('Completed appointments loaded.');
+          toast.success("Completed appointments loaded.", { toastId });
         } else {
           console.error("Completed appointments API response was not a direct array:", response.data);
           setCompletedAppointments([]);
           setStatusMessage("Received unexpected data format for completed appointments.");
           setIsError(true);
-          toast.error("Failed to load completed appointments due to data format issue.");
+          toast.error("Failed to load completed appointments due to data format issue.", { toastId });
         }
 
       } catch (error) {
         console.error("Error fetching completed appointments:", error.response?.data || error.message);
         setIsError(true);
+        const toastId = 'fetch-appointments-feedback-error'; // Unique ID for fetch error toasts
         if (error.response && error.response.status === 401) {
           setStatusMessage("Session expired or unauthorized. Please login again.");
           localStorage.removeItem('token');
           localStorage.removeItem('user');
+          toast.error("Session expired or unauthorized. Please login again.", { toastId });
           setTimeout(() => navigate('/login'), 1500);
         } else {
           setStatusMessage(error.response?.data?.message || "Failed to load completed appointments.");
-          toast.error(error.response?.data?.message || "Failed to load completed appointments.");
+          toast.error(error.response?.data?.message || "Failed to load completed appointments.", { toastId });
         }
       } finally {
         setLoading(false);
@@ -95,10 +95,12 @@ const FeedbackPage = () => {
     setIsError(false);
 
     try {
-      const headers = getAuthHeader();
+      const toastId = 'feedback-submit-status'; // Consistent ID for submit toasts
+      const headers = getAuthHeader(); // Correctly get headers here
       if (!headers.Authorization) {
         setStatusMessage("You are not logged in. Redirecting to login...");
         setIsError(true);
+        toast.error("You are not logged in. Redirecting to login...", { toastId });
         setTimeout(() => navigate('/login'), 1500);
         return;
       }
@@ -106,17 +108,18 @@ const FeedbackPage = () => {
         setStatusMessage("Please select a rating (1-5 stars).");
         setIsError(true);
         setLoading(false);
+        toast.error("Please select a rating (1-5 stars).", { toastId });
         return;
       }
 
       // API call to submit feedback
       const response = await axios.post(`${API_BASE_URL}/user/feedback`, feedbackForm, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: headers, // Correctly use the headers object here
       });
 
       setStatusMessage(response.data.message || "Feedback submitted successfully! Thank you.");
       setIsError(false);
-      toast.success("Feedback submitted successfully!");
+      toast.success("Feedback submitted successfully!", { toastId });
       setFeedbackForm({ appointment_id: '', rating: 0, comment: '' }); // Reset form
       // Optional: Re-fetch completed appointments to remove the one just given feedback
       setCompletedAppointments(prev => prev.filter(app => app.id !== feedbackForm.appointment_id));
@@ -124,6 +127,7 @@ const FeedbackPage = () => {
     } catch (error) {
       console.error("Error submitting feedback:", error.response?.data || error.message);
       setIsError(true);
+      const toastId = 'feedback-submit-error'; // Unique ID for submit error toasts
       if (error.response && error.response.status === 422) { // Validation errors
         const errors = error.response.data.errors;
         let errorMessage = "Submission failed: \n";
@@ -131,10 +135,10 @@ const FeedbackPage = () => {
           errorMessage += `- ${errors[key].join(", ")}\n`;
         }
         setStatusMessage(errorMessage);
-        toast.error(errorMessage);
+        toast.error(errorMessage, { toastId });
       } else {
         setStatusMessage(error.response?.data?.message || "An error occurred during feedback submission.");
-        toast.error(error.response?.data?.message || "An error occurred during feedback submission.");
+        toast.error(error.response?.data?.message || "An error occurred during feedback submission.", { toastId });
       }
     } finally {
       setLoading(false);

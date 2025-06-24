@@ -83,7 +83,7 @@ const DashboardLayout = ({ children, role }) => {
       case 'service_provider':
         return [
           { path: '/provider-dashboard', icon: <MdDashboard size={20} />, label: 'Dashboard' },
-          { path: '/provider/service-requests', icon: <MdViewAgenda size={20} />, label: 'Service Requests' },
+          // { path: '/provider/service-requests', icon: <MdViewAgenda size={20} />, label: 'Service Requests' },
           { path: '/provider/manage-schedule', icon: <MdSchedule size={20} />, label: 'My Schedule' },
           { path: '/provider/mark-completed', icon: <MdCheckCircle size={20} />, label: 'Mark Completed' },
           { path: '/provider/view-feedback', icon: <MdFeedback size={20} />, label: 'View Feedback' },

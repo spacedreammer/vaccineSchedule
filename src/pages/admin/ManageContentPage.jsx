@@ -112,10 +112,10 @@ const ManageContentPage = () => {
       const headers = getAuthHeader();
       if (!headers.Authorization) return;
       await axios.delete(`${API_BASE_URL}/admin/content/${id}`, { headers });
-      toast.success("Content deleted successfully!");
+      toast.success("Content deleted successfully!", { toastId: "successDeleted" });
       await fetchContent(); // Re-fetch content
     } catch (err) {
-      console.error("Failed to delete content:", err.response?.data || err.message);
+      console.error("Failed to delete content:", err.response?.data || err.message, { toastId: "errorDelete" });
       setError("Failed to delete content: " + (err.response?.data?.message || err.message));
       toast.error("Failed to delete content: " + (err.response?.data?.message || err.message));
     } finally {

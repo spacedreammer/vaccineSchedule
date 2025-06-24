@@ -83,6 +83,7 @@ Route::middleware('auth:api')->group(function () {
         Route::get('/my-schedule', [ScheduleController::class, 'getProviderSchedules']);
         Route::put('/appointments/{appointment}/complete', [AppointmentController::class, 'markAppointmentAsCompleted']);
         Route::get('/my-feedback', [FeedbackController::class, 'myFeedback']);
+        Route::get('/appointments-ready-to-complete', [AppointmentController::class, 'getAppointmentsReadyToComplete']);
     });
 
     // --- System Admin Module Routes ---

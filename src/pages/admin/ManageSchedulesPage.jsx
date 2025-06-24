@@ -110,12 +110,12 @@ const ManageSchedulesPage = () => {
       const headers = getAuthHeader();
       if (!headers.Authorization) return;
       await axios.delete(`${API_BASE_URL}/admin/schedules/${id}`, { headers });
-      toast.success("Schedule deleted successfully!");
+      toast.success("Schedule deleted successfully!", { toastId: "sucessDeleted" });
       await fetchSchedulesAndCategories(); // Re-fetch to update list
     } catch (err) {
       console.error("Failed to delete schedule:", err.response?.data || err.message);
       setError("Failed to delete schedule: " + (err.response?.data?.message || err.message));
-      toast.error("Failed to delete schedule: " + (err.response?.data?.message || err.message));
+      toast.error("Failed to delete schedule: " + (err.response?.data?.message || err.message), { toastId: "failedDelete" });
     } finally {
       setLoading(false);
     }

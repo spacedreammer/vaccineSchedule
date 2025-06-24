@@ -51,7 +51,7 @@ const ManageServiceCategoriesPage = () => {
         await axios.post(`${API_BASE_URL}/api/system-admin/service-categories`, form, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        toast.success("Category created successfully!");
+        toast.success("Category created successfully!", { toastId: "successCategory" });
       }
       setForm({ name: '', description: '' });
       setEditingCategoryId(null);
@@ -79,7 +79,7 @@ const ManageServiceCategoriesPage = () => {
         toast.success("Category deleted successfully!");
         setCategories(categories.filter(c => c.id !== id));
       } catch (err) {
-        toast.error("Failed to delete category.");
+        toast.error("Failed to delete category.", { toastId: "errorDelete" });
       }
     }
   };

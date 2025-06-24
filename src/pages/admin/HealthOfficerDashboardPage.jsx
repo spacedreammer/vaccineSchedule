@@ -30,7 +30,7 @@ const HealthOfficerDashboardPage = () => {
       try {
         const headers = getAuthHeader(); // <--- Correctly get headers here
         if (!headers.Authorization) {
-          toast.error("Authentication required. Redirecting to login.");
+          toast.error("Authentication required. Redirecting to login.", { toastId: "errorLogin" });
           navigate('/login'); // Redirect if no token
           setLoading(false);
           return;
@@ -41,7 +41,7 @@ const HealthOfficerDashboardPage = () => {
           headers: headers, // <--- Use the 'headers' object
         });
         setStats(res.data);
-        toast.success("Health Officer dashboard loaded!"); // Specific success message
+        toast.success("Health Officer dashboard loaded!", { toastId: "successLoad" }); // Specific success message
       } catch (err) {
         console.error("Failed to fetch dashboard stats:", err.response?.data || err.message);
         setError("Failed to load dashboard statistics. Please try again."); // Set specific error message

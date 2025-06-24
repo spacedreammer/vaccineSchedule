@@ -12,12 +12,13 @@ use App\Models\VaccineCategory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use App\Enums\UserRoleEnum; 
+use App\Enums\UserRoleEnum;
 
 class DashboardController extends Controller
 {
     // Helper to check user role (for more complex apps, use Gates/Policies)
-    private function authorizeRole($allowedRoles) {
+    private function authorizeRole($allowedRoles)
+    {
         $user = Auth::user();
 
         // If for some reason user is null (should be caught by middleware)
@@ -65,8 +66,8 @@ class DashboardController extends Controller
         $pendingAppointments = Appointment::where('status', 'pending')->count();
         $totalVaccinations = Appointment::where('status', 'completed')->count();
         $activeSchedules = Schedule::where('status', 'active')
-                                    ->whereDate('date', '>=', now()->toDateString())
-                                    ->count();
+            ->whereDate('date', '>=', now()->toDateString())
+            ->count();
         $newFeedbacks = Feedback::where('created_at', '>=', now()->subDays(7))->count();
 
         return response()->json([
@@ -86,16 +87,16 @@ class DashboardController extends Controller
         $providerId = $request->user()->id; // Get the ID of the authenticated provider
 
         $pendingRequests = Appointment::where('provider_id', $providerId)
-                                      ->where('status', 'pending')
-                                      ->count();
+            ->where('status', 'pending')
+            ->count();
         $completedServicesToday = Appointment::where('provider_id', $providerId)
-                                             ->where('status', 'completed')
-                                             ->whereDate('updated_at', now()->toDateString())
-                                             ->count();
+            ->where('status', 'completed')
+            ->whereDate('updated_at', now()->toDateString())
+            ->count();
         $upcomingAppointments = Appointment::where('provider_id', $providerId)
-                                          ->where('status', 'approved')
-                                          ->whereDate('preferred_date', '>=', now()->toDateString())
-                                          ->count();
+            ->where('status', 'approved')
+            ->whereDate('preferred_date', '>=', now()->toDateString())
+            ->count();
 
         // Calculate average rating for this provider
         $averageRating = Feedback::where('provider_id', $providerId)->avg('rating');
@@ -135,15 +136,15 @@ class DashboardController extends Controller
         if ($authCheck) return $authCheck;
 
         // Example: User registration growth (past 12 months)
-        $userGrowth = User::selectRaw("strftime('%Y-%m', created_at) as month, count(*) as count")
-                          ->groupBy('month')
-                          ->orderBy('month')
-                          ->get();
+        $userGrowth = User::selectRaw("DATE_FORMAT('%Y-%m', created_at) as month, count(*) as count")
+            ->groupBy('month')
+            ->orderBy('month')
+            ->get();
 
         // Example: Appointment status breakdown
         $appointmentStatusCounts = Appointment::select('status', DB::raw('count(*) as count'))
-                                              ->groupBy('status')
-                                              ->pluck('count', 'status');
+            ->groupBy('status')
+            ->pluck('count', 'status');
 
         return response()->json([
             'userGrowth' => $userGrowth,

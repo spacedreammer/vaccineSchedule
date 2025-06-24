@@ -42,13 +42,13 @@ const AppointmentStatusPage = () => {
         if (Array.isArray(response.data)) {
           setAppointments(response.data);
           setStatusMessage('Appointments loaded successfully.');
-          toast.success("Appointments loaded!");
+          toast.success("Appointments loaded!", { toastId: "successAppo" });
         } else {
           console.error("Appointments API response was not a direct array:", response.data);
           setAppointments([]);
           setStatusMessage("Received unexpected data format for appointments.");
           setIsError(true);
-          toast.error("Failed to load appointments due to data format issue.");
+          toast.error("Failed to load appointments due to data format issue." , { toastId: "errorAppo" });
         }
 
       } catch (error) {
@@ -61,7 +61,7 @@ const AppointmentStatusPage = () => {
           setTimeout(() => navigate('/login'), 1500);
         } else {
           setStatusMessage(error.response?.data?.message || "Failed to load appointments. Please try again.");
-          toast.error(error.response?.data?.message || "Failed to load appointments.");
+          toast.error(error.response?.data?.message || "Failed to load appointments.", { toastId: "errorAppo" });
         }
       } finally {
         setLoading(false);

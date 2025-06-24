@@ -25,18 +25,18 @@ const SystemAnalyticsPage = () => {
       try {
         const headers = getAuthHeader();
         if (!headers.Authorization) {
-          toast.error("Authentication required. Redirecting to login.");
+          toast.error("Authentication required. Redirecting to login.", { toastId: "AuthReq" });
           navigate('/login');
           return;
         }
         // API call to fetch comprehensive system analytics
         const res = await axios.get(`${API_BASE_URL}/system-admin/analytics`, { headers });
         setAnalyticsData(res.data);
-        toast.success("System analytics loaded successfully.");
+        toast.success("System analytics loaded successfully.",{ toastId: "SuccessSystemAna" });
       } catch (err) {
         console.error("Failed to fetch analytics data:", err.response?.data || err.message);
         setError("Failed to load system analytics. Please try again.");
-        toast.error("Failed to load system analytics.");
+        toast.error("Failed to load system analytics.",{ toastId: "errorSystemAna" });
         if (err.response?.status === 401 || err.response?.status === 403) {
             navigate('/login');
         }

@@ -7,9 +7,23 @@ use App\Models\Schedule; // To potentially update booked slots
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
+use App\Enums\AppointmentStatusEnum; // Ensure this is imported
+use App\Enums\UserRoleEnum;
 
 class AppointmentController extends Controller
 {
+
+    private function authorizeRole($allowedRoles) {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+        $userRoleString = $user->role instanceof UserRoleEnum ? $user->role->value : (string) $user->role;
+        if (!in_array($userRoleString, $allowedRoles)) {
+            return response()->json(['message' => 'Unauthorized access'], 403);
+        }
+        return null; // No error, proceed
+    }
     // User Module: Schedule a new appointment
     public function scheduleAppointment(Request $request)
     {
@@ -90,26 +104,45 @@ class AppointmentController extends Controller
     // Admin/Health Officer Module: Approve or Reject an appointment
     public function updateAppointmentStatus(Request $request, Appointment $appointment)
     {
-        // Simple auth check. Use middleware/policy for production.
-        if (Auth::check() && Auth::user()->role !== 'health_officer' && Auth::user()->role !== 'admin') {
-            return response()->json(['message' => 'Unauthorized access'], 403);
-        }
+        $authCheck = $this->authorizeRole([UserRoleEnum::HealthOfficer->value, UserRoleEnum::Admin->value]);
+        if ($authCheck) return $authCheck;
 
         try {
             $validated = $request->validate([
-                'status' => 'required|string|in:approved,rejected,cancelled', // Admin/HO can set these
+                'status' => 'required|string|in:' .
+                            AppointmentStatusEnum::Approved->value . ',' .
+                            AppointmentStatusEnum::Rejected->value . ',' .
+                            AppointmentStatusEnum::Cancelled->value,
+                'provider_id' => 'nullable|exists:users,id', // <--- ADD THIS VALIDATION
             ]);
 
-            $appointment->update(['status' => $validated['status']]);
+            $updateData = ['status' => $validated['status']];
 
-            // If an appointment is approved, assign a provider? (optional logic here)
-            // If an appointment is rejected/cancelled, decrement schedule booked_slots? (optional logic here)
-            if ($validated['status'] === 'rejected' && $appointment->schedule) {
+            // --- ADD PROVIDER ASSIGNMENT LOGIC ---
+            if ($validated['status'] === AppointmentStatusEnum::Approved->value) {
+                // If a provider_id is provided in the request, use it.
+                // Otherwise, you might implement auto-assignment or leave null for manual assignment later.
+                $updateData['provider_id'] = $validated['provider_id'] ?? null;
+            } else {
+                // If status changes to rejected/cancelled, remove provider assignment (optional, but good practice)
+                $updateData['provider_id'] = null;
+            }
+            // --- END PROVIDER ASSIGNMENT LOGIC ---
+
+            $appointment->update($updateData); // Use $updateData array for mass assignment
+
+            // If an appointment is rejected/cancelled, decrement schedule booked_slots (if linked)
+            if (($validated['status'] === AppointmentStatusEnum::Rejected->value || $validated['status'] === AppointmentStatusEnum::Cancelled->value)
+                && $appointment->schedule) {
                 $appointment->schedule->decrement('booked_slots');
                 if ($appointment->schedule->booked_slots < $appointment->schedule->capacity) {
                     $appointment->schedule->update(['status' => 'active']);
                 }
             }
+            // If the status is Approved, and a schedule is linked, you might also want to ensure
+            // the schedule's status doesn't change to 'full' if it's not actually full yet,
+            // or handle capacity management if the provider is assigned a new slot.
+            // (Current increment logic for booked_slots happens on appointment creation, which is fine)
 
             return response()->json(['message' => 'Appointment status updated successfully', 'appointment' => $appointment]);
         } catch (ValidationException $e) {
@@ -118,6 +151,7 @@ class AppointmentController extends Controller
             return response()->json(['message' => 'Failed to update appointment status', 'error' => $e->getMessage()], 500);
         }
     }
+
 
     // Service Provider Module: List appointments ready to be marked as completed
     public function getAppointmentsReadyToComplete(Request $request)

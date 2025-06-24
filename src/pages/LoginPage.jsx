@@ -35,7 +35,7 @@ const LoginPage = () => {
       if (response.status === 200) {
         setStatusMessage(response.data.message || "Login successful!");
         setIsError(false);
-        toast.success("Login successful! Redirecting to dashboard..."); // Use toast
+        toast.success("Login successful! Redirecting to dashboard...", { toastId: "successDir" }); // Use toast
 
         // --- CRITICAL FIXES FOR LOCAL STORAGE AND REDIRECTION ---
         // 1. Store token using the consistent key 'token' (matching ProtectedRoute)

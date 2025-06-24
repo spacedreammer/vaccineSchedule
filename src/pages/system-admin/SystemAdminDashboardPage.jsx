@@ -28,18 +28,18 @@ const SystemAdminDashboardPage = () => {
       try {
         const headers = getAuthHeader();
         if (!headers.Authorization) {
-          toast.error("Authentication required. Redirecting to login.");
+          toast.error("Authentication required. Redirecting to login.", { toastId: "errorAuthReq" });
           navigate('/login');
           return;
         }
         // API call to fetch system admin dashboard statistics
         const res = await axios.get(`${API_BASE_URL}/system-admin/dashboard-stats`, { headers });
         setStats(res.data);
-        toast.success("System Admin dashboard loaded!");
+        toast.success("System Admin dashboard loaded!", { toastId: "success" });
       } catch (err) {
         console.error("Failed to fetch dashboard stats:", err.response?.data || err.message);
         setError("Failed to load dashboard statistics. Please try again.");
-        toast.error("Failed to load dashboard statistics.");
+        toast.error("Failed to load dashboard statistics.", { toastId: "erroDash" });
         if (err.response?.status === 401 || err.response?.status === 403) {
             navigate('/login');
         }

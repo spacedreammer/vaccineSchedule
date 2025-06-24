@@ -33,7 +33,7 @@ const SystemAdmin = () => {
           "Failed to fetch dashboard stats:",
           err.response?.data || err.message
         );
-        toast.error("Failed to load dashboard statistics.");
+        toast.error("Failed to load dashboard statistics.", { toastId: "errorDash" });
       } finally {
         setLoading(false);
       }

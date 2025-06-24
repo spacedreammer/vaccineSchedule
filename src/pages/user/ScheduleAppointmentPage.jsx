@@ -58,7 +58,7 @@ const ScheduleAppointmentPage = () => {
 
       } catch (err) {
         console.error("Failed to fetch dropdown data:", err.response?.data || err.message);
-        toast.error("Failed to load scheduling options.");
+        toast.error("Failed to load scheduling options.", { toastId: "errorSchedule" });
         if (err.response?.status === 401 || err.response?.status === 403) {
             toast.error("Session expired or unauthorized. Please login.");
             localStorage.removeItem('token');
@@ -101,7 +101,7 @@ const ScheduleAppointmentPage = () => {
 
       setStatusMessage(response.data.message || "Appointment scheduled successfully! Awaiting approval.");
       setIsError(false);
-      toast.success("Appointment scheduled successfully!");
+      toast.success("Appointment scheduled successfully!", { toastId: "successfulAppo" });
       setAppointmentForm({ // Reset form to initial empty state
         child_name: '',
         vaccine_type: '',

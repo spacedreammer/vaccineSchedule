@@ -25,7 +25,7 @@ const MonitorTrendsPage = () => {
       try {
         const headers = getAuthHeader();
         if (!headers.Authorization) {
-          toast.error("Authentication required. Redirecting to login.");
+          toast.error("Authentication required. Redirecting to login.", { toastId: "errorLogin" });
           navigate('/login');
           return;
         }
@@ -33,11 +33,11 @@ const MonitorTrendsPage = () => {
         // This endpoint can be shared with System Admin as it's general analytics
         const res = await axios.get(`${API_BASE_URL}/admin/monitor-trends`, { headers });
         setTrendsData(res.data); // Assuming data like { vaccinationsByMonth: [...], appointmentStatusCounts: {...} }
-        toast.success("Analytics loaded successfully.");
+        toast.success("Analytics loaded successfully.", { toastId: "successAnalyt" });
       } catch (err) {
-        console.error("Failed to fetch trends data:", err.response?.data || err.message);
+        console.error("Failed to fetch trends data:", err.response?.data || err.message, { toastId: "errorTrend" });
         setError("Failed to load analytics data. Please try again.");
-        toast.error("Failed to load analytics data.");
+        toast.error("Failed to load analytics data.", { toastId: "errorAnalyt" });
         if (err.response?.status === 401 || err.response?.status === 403) {
             navigate('/login');
         }

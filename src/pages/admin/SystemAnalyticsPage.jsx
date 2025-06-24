@@ -22,7 +22,7 @@ const SystemAnalyticsPage = () => {
         setAnalyticsData(res.data); // Assuming data like { userGrowth: [...], serviceUsage: [...] }
       } catch (err) {
         console.error("Failed to fetch analytics data:", err.response?.data || err.message);
-        toast.error("Failed to load system analytics.");
+        toast.error("Failed to load system analytics.", { toastId: "errorAnalytic" });
       } finally {
         setLoading(false);
       }
